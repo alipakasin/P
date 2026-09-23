@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kuis Seru Tanpa Batas</title>
+    <title>Kuis Lomba 2 Pemain</title>
     <!-- Library Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
@@ -16,7 +16,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
         }
         #app {
             background-color: white;
@@ -25,6 +25,7 @@
             box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
             max-width: 600px;
             width: 90%;
+            position: relative;
         }
         h1 { color: #333; }
         .btn {
@@ -38,25 +39,70 @@
             cursor: pointer;
             transition: 0.3s;
             width: 80%;
+            font-weight: bold;
         }
         .btn:hover { background-color: #45a049; }
         .btn-subject { background-color: #008CBA; }
         .btn-subject:hover { background-color: #007bb5; }
-        .btn-danger { background-color: #f44336; width: auto; padding: 10px 15px;}
+        .btn-danger { background-color: #f44336; width: auto; padding: 10px 15px; margin-top: 20px;}
         .btn-danger:hover { background-color: #da190b; }
         
         #quiz-container { display: none; }
+        
+        /* Area Timer */
+        #timer-box {
+            font-size: 30px;
+            font-weight: bold;
+            color: #333;
+            background: #eee;
+            padding: 10px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-bottom: 10px;
+            width: 100px;
+            transition: 0.2s;
+        }
+        .panik {
+            color: white !important;
+            background-color: #f44336 !important;
+            animation: kedip 0.5s infinite alternate;
+        }
+        @keyframes kedip {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+
+        /* Area Skor Lomba */
+        .score-board-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .player-score {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+        .aktif-p1 { background-color: #2196F3; color: white; box-shadow: 0 0 10px #2196F3; }
+        .aktif-p2 { background-color: #FF9800; color: white; box-shadow: 0 0 10px #FF9800; }
+        .pasif { background-color: #ddd; color: #777; }
+
         .options-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
             margin-top: 20px;
         }
-        #score-board {
-            margin-top: 20px;
-            font-size: 18px;
+        #turn-indicator {
+            font-size: 22px;
             font-weight: bold;
-            color: #555;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -65,7 +111,8 @@
     <div id="app">
         <!-- Menu Utama -->
         <div id="menu-container">
-            <h1>Pilih Mata Pelajaran</h1>
+            <h1>🏆 Kuis Lomba 2 Pemain</h1>
+            <p>Jawab dalam 10 detik atau giliranmu hangus!</p>
             <button class="btn btn-subject" onclick="mulaiKuis('bindo')">📚 Bahasa Indonesia</button><br>
             <button class="btn btn-subject" onclick="mulaiKuis('inggris')">🌍 Bahasa Inggris</button><br>
             <button class="btn btn-subject" onclick="mulaiKuis('mtk')">🧮 Matematika</button>
@@ -74,25 +121,44 @@
         <!-- Area Kuis -->
         <div id="quiz-container">
             <h2 id="subject-title">Mata Pelajaran</h2>
+            
+            <div id="turn-indicator">Giliran: Pemain 1</div>
+            <div id="timer-box">⏱ 10</div>
+
             <h3 id="question-text">Pertanyaan akan muncul di sini</h3>
             <div class="options-grid" id="options-container">
                 <!-- Tombol pilihan ganda akan di-generate oleh JavaScript -->
             </div>
-            <div id="score-board">Skor: <span id="score">0</span></div>
-            <br>
-            <button class="btn btn-danger" onclick="kembaliKeMenu()">Kembali ke Menu</button>
+
+            <!-- Papan Skor -->
+            <div class="score-board-container">
+                <div id="box-p1" class="player-score aktif-p1">Pemain 1<br>Skor: <span id="score-p1">0</span></div>
+                <div id="box-p2" class="player-score pasif">Pemain 2<br>Skor: <span id="score-p2">0</span></div>
+            </div>
+
+            <button class="btn btn-danger" onclick="kembaliKeMenu()">Berhenti & Ke Menu</button>
         </div>
     </div>
 
-    <!-- Audio Player (Menggunakan URL sound effect gratis dari Mixkit) -->
+    <!-- Audio Player -->
+    <!-- Suara Benar (Ting) -->
     <audio id="sound-correct" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
-    <audio id="sound-wrong" src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
+    <!-- Suara Salah/Buzzer (Tetet) -->
+    <audio id="sound-wrong" src="https://assets.mixkit.co/active_storage/sfx/2954/2954-preview.mp3"></audio>
+    <!-- Suara Panik (Waktu mau habis) -->
+    <audio id="sound-panic" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3" loop></audio>
 
     <script>
-        let skor = 0;
-        let mapelSaatIni = '';
+        let skorP1 = 0;
+        let skorP2 = 0;
+        let giliranPemain = 1; // 1 untuk P1, 2 untuk P2
         
-        // Data Soal Bahasa Indonesia
+        let mapelSaatIni = '';
+        let timerInterval;
+        let waktuTersisa = 10; // 10 detik setiap pertanyaan
+        let kuisAktif = false; // Mencegah klik ganda saat transisi
+        
+        // Data Soal
         const soalBindo = [
             { q: "Antonim dari kata 'Tinggi' adalah...", options: ["Pendek", "Besar", "Panjang", "Kecil"], a: "Pendek" },
             { q: "Sinonim dari kata 'Pintar' adalah...", options: ["Cerdas", "Rajin", "Bodoh", "Malas"], a: "Cerdas" },
@@ -101,7 +167,6 @@
             { q: "Majas yang melebih-lebihkan sesuatu disebut majas...", options: ["Hiperbola", "Personifikasi", "Metafora", "Litotes"], a: "Hiperbola" }
         ];
 
-        // Data Soal Bahasa Inggris
         const soalInggris = [
             { q: "Apa bahasa Inggris dari 'Kucing'?", options: ["Cat", "Dog", "Bird", "Fish"], a: "Cat" },
             { q: "Bentuk lampau (Past Tense) dari 'Go' adalah...", options: ["Went", "Gone", "Going", "Goes"], a: "Went" },
@@ -112,8 +177,11 @@
 
         function mulaiKuis(mapel) {
             mapelSaatIni = mapel;
-            skor = 0;
-            updateSkor();
+            skorP1 = 0;
+            skorP2 = 0;
+            giliranPemain = 1;
+            updateUI();
+            
             document.getElementById('menu-container').style.display = 'none';
             document.getElementById('quiz-container').style.display = 'block';
 
@@ -125,18 +193,20 @@
         }
 
         function kembaliKeMenu() {
+            hentikanTimer();
+            matikanSuaraPanik();
             document.getElementById('menu-container').style.display = 'block';
             document.getElementById('quiz-container').style.display = 'none';
         }
 
         function buatSoal() {
+            kuisAktif = true;
             let pertanyaan = "";
             let pilihan = [];
             let jawabanBenar = "";
 
             if (mapelSaatIni === 'mtk') {
-                // Generate soal matematika acak secara dinamis
-                let tipe = Math.floor(Math.random() * 3); // 0: tambah, 1: kurang, 2: kali
+                let tipe = Math.floor(Math.random() * 3);
                 let angka1 = Math.floor(Math.random() * 20) + 1;
                 let angka2 = Math.floor(Math.random() * 20) + 1;
                 
@@ -144,18 +214,16 @@
                     pertanyaan = `${angka1} + ${angka2} = ?`;
                     jawabanBenar = (angka1 + angka2).toString();
                 } else if (tipe === 1) {
-                    // Agar tidak minus, pastikan angka1 > angka2
                     if (angka1 < angka2) [angka1, angka2] = [angka2, angka1];
                     pertanyaan = `${angka1} - ${angka2} = ?`;
                     jawabanBenar = (angka1 - angka2).toString();
                 } else {
-                    angka1 = Math.floor(Math.random() * 10) + 1; // Perkalian diperkecil angkanya
+                    angka1 = Math.floor(Math.random() * 10) + 1;
                     angka2 = Math.floor(Math.random() * 10) + 1;
                     pertanyaan = `${angka1} x ${angka2} = ?`;
                     jawabanBenar = (angka1 * angka2).toString();
                 }
 
-                // Buat 3 pilihan salah
                 pilihan.push(jawabanBenar);
                 while(pilihan.length < 4) {
                     let salah = parseInt(jawabanBenar) + Math.floor(Math.random() * 10) - 5;
@@ -177,19 +245,86 @@
                 jawabanBenar = soalAcak.a;
             }
 
-            // Acak urutan pilihan (Shuffle)
             pilihan.sort(() => Math.random() - 0.5);
 
-            // Tampilkan ke layar
             document.getElementById('question-text').innerText = pertanyaan;
             let optionsHtml = '';
             pilihan.forEach(opt => {
                 optionsHtml += `<button class="btn" onclick="cekJawaban('${opt}', '${jawabanBenar}')">${opt}</button>`;
             });
             document.getElementById('options-container').innerHTML = optionsHtml;
+
+            mulaiTimer(jawabanBenar);
+        }
+
+        function mulaiTimer(jawabanBenar) {
+            hentikanTimer();
+            matikanSuaraPanik();
+            waktuTersisa = 10;
+            updateTimerVisual();
+
+            timerInterval = setInterval(() => {
+                waktuTersisa--;
+                updateTimerVisual();
+
+                // Mulai mainkan suara panik jika waktu sisa 3 detik
+                if (waktuTersisa === 3) {
+                    let soundPanic = document.getElementById('sound-panic');
+                    soundPanic.currentTime = 0;
+                    soundPanic.play();
+                }
+
+                // Jika waktu habis
+                if (waktuTersisa <= 0) {
+                    hentikanTimer();
+                    waktuHabis();
+                }
+            }, 1000);
+        }
+
+        function updateTimerVisual() {
+            let timerBox = document.getElementById('timer-box');
+            timerBox.innerText = `⏱ ${waktuTersisa}`;
+            
+            if (waktuTersisa <= 3) {
+                timerBox.classList.add('panik');
+            } else {
+                timerBox.classList.remove('panik');
+            }
+        }
+
+        function hentikanTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function matikanSuaraPanik() {
+            let soundPanic = document.getElementById('sound-panic');
+            soundPanic.pause();
+            soundPanic.currentTime = 0;
+            document.getElementById('timer-box').classList.remove('panik');
+        }
+
+        function waktuHabis() {
+            if (!kuisAktif) return;
+            kuisAktif = false;
+            matikanSuaraPanik();
+            
+            // Putar suara Tetet (Buzzer)
+            let soundWrong = document.getElementById('sound-wrong');
+            soundWrong.currentTime = 0;
+            soundWrong.play();
+
+            alert("WAKTU HABIS! Giliran hangus.");
+            lanjutKePemainBerikutnya();
         }
 
         function cekJawaban(dipilih, benar) {
+            if (!kuisAktif) return;
+            kuisAktif = false; // Blokir klik lain saat memproses
+            
+            hentikanTimer();
+            matikanSuaraPanik();
+
             let soundCorrect = document.getElementById('sound-correct');
             let soundWrong = document.getElementById('sound-wrong');
 
@@ -197,28 +332,56 @@
                 // Jawaban Benar
                 soundCorrect.currentTime = 0;
                 soundCorrect.play();
-                confetti({
-                    particleCount: 150,
-                    spread: 70,
-                    origin: { y: 0.6 }
-                });
-                skor += 10;
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                
+                // Tambah skor pemain yang sedang aktif
+                if (giliranPemain === 1) skorP1 += 10;
+                else skorP2 += 10;
+                
             } else {
-                // Jawaban Salah
+                // Jawaban Salah (Tetet)
                 soundWrong.currentTime = 0;
                 soundWrong.play();
             }
             
-            updateSkor();
+            updateUI();
             
-            // Lanjut ke soal berikutnya secara otomatis setelah 0.8 detik
+            // Jeda 1.5 detik lalu lanjut ke pemain berikutnya
             setTimeout(() => {
-                buatSoal();
-            }, 800); 
+                lanjutKePemainBerikutnya();
+            }, 1500); 
         }
 
-        function updateSkor() {
-            document.getElementById('score').innerText = skor;
+        function lanjutKePemainBerikutnya() {
+            // Ganti giliran 1 -> 2 atau 2 -> 1
+            giliranPemain = giliranPemain === 1 ? 2 : 1;
+            updateUI();
+            buatSoal();
+        }
+
+        function updateUI() {
+            // Update Teks Skor
+            document.getElementById('score-p1').innerText = skorP1;
+            document.getElementById('score-p2').innerText = skorP2;
+
+            // Update Tulisan Giliran
+            let turnText = document.getElementById('turn-indicator');
+            let boxP1 = document.getElementById('box-p1');
+            let boxP2 = document.getElementById('box-p2');
+
+            if (giliranPemain === 1) {
+                turnText.innerText = "👉 Giliran: Pemain 1";
+                turnText.style.color = "#2196F3"; // Biru
+                
+                boxP1.className = "player-score aktif-p1";
+                boxP2.className = "player-score pasif";
+            } else {
+                turnText.innerText = "👉 Giliran: Pemain 2";
+                turnText.style.color = "#FF9800"; // Orange
+                
+                boxP1.className = "player-score pasif";
+                boxP2.className = "player-score aktif-p2";
+            }
         }
     </script>
 </body>
